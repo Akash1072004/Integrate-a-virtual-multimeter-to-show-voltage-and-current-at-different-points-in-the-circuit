@@ -1,7 +1,7 @@
 ## Introduction
 
 
-<b>Discipline | <b>Computer Science and Engineering 
+<b>Discipline | <b>Electrical 
 :--|:--|
 <b> Lab | <b> Virtual Lab
 <b> Experiment|     <b> : Experiment 1 : Integrate a virtual multimeter to show voltage and current at different points in the circuit.
