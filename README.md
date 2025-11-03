@@ -10,11 +10,11 @@
 
 Fill a brief description of this experiment here
 
-<b>Name of Developer | <b> Fill the name of experiment owner here 
+<b>Name of Developer | <b> Akash Kumar
 :--|:--|
-<b> Institute | <b>  
-<b> Email id|     <b>  
-<b> Department |  
+<b> Rajkiya Engineering college Banda | <b>  
+<b> 2407340130006@recbanda.ac.in|     <b>  
+<b> Information Technology |  
 
 ### Contributors List
 
