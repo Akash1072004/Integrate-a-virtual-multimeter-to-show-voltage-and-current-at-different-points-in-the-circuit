@@ -3,8 +3,8 @@
 
 <b>Discipline | <b>Computer Science and Engineering 
 :--|:--|
-<b> Lab | <b> Fill your lab name here
-<b> Experiment|     <b> Fill your experiment name and number here
+<b> Lab | <b> Virtual Lab
+<b> Experiment|     <b> : Experiment 1 : Integrate a virtual multimeter to show voltage and current at different points in the circuit.
 
 ### About the Experiment 
 
