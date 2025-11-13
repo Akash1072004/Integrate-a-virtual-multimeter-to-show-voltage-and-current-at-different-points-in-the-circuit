@@ -1,0 +1,115 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background-color: #f4f4f4;
+}
+
+.container {
+    width: 80%;
+    margin: 40px auto;
+    display: flex;
+    background-color: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* ---------- Left Section ---------- */
+.left {
+    width: 35%;
+    background-color: #2f2f2f;
+    color: white;
+    padding: 30px;
+}
+
+.profile {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.profile-img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    object-fit: cover;
+    margin-bottom: 15px;
+}
+
+.profile h1 {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.profile h3 {
+    color: #d1b46c;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.section {
+    margin-bottom: 25px;
+}
+
+.section h2 {
+    color: #d1b46c;
+    font-size: 16px;
+    border-bottom: 2px solid #d1b46c;
+    display: inline-block;
+    margin-bottom: 10px;
+    padding-bottom: 3px;
+}
+
+.section p {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.section ul {
+    list-style: none;
+    font-size: 14px;
+}
+
+.section ul li::before {
+    content: "• ";
+    color: #d1b46c;
+}
+
+/* ---------- Right Section ---------- */
+.right {
+    width: 65%;
+    padding: 30px;
+}
+
+.right .section h2 {
+    color: #2f2f2f;
+    background-color: #f0d889;
+    padding: 6px 12px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.right ul {
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.right p {
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+a {
+    text-decoration: none;
+    color: #333;
+}
+
+a:hover {
+    text-decoration: underline;
+}
