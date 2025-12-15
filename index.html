@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>VR Multimeter Simulation</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+    
+    <script>
+      // Circuit Logic Configuration
+      const CIRCUIT_DATA = {
+        voltage: 9.00, // Battery Voltage
+        resistance: 1000, // 1k Ohm
+        nodes: {
+          'node-bat-pos': 9.00,
+          'node-res-top': 9.00,
+          'node-res-bot': 0.00,
+          'node-bat-neg': 0.00
+        }
+      };
+
+      AFRAME.registerComponent('circuit-manager', {
+        init: function () {
+          this.redProbeNode = null;
+          this.blackProbeNode = null;
+          this.mode = 'OFF'; // OFF, VOLTS, AMPS
+          this.holding = null; // 'red' or 'black'
+
+          // Elements
+          this.screenText = document.querySelector('#multimeter-text');
+          this.dial = document.querySelector('#multimeter-dial');
+          this.redProbe = document.querySelector('#probe-red');
+          this.blackProbe = document.querySelector('#probe-black');
+          
+          // Bind click events for interactions
+          this.setupInteractions();
+        },
+
+        setupInteractions: function() {
+          // 1. Dial Interaction
+          this.dial.addEventListener('click', () => {
+            this.cycleMode();
+          });
+
+          // 2. Probe Pickup Interactions
+          this.redProbe.addEventListener('click', () => this.toggleHold('red'));
+          this.blackProbe.addEventListener('click', () => this.toggleHold('black'));
+
+          // 3. Node Interactions (Placing probes)
+          const nodes = document.querySelectorAll('.circuit-node');
+          nodes.forEach(node => {
+            node.addEventListener('click', (evt) => {
+              if (this.holding) {
+                this.placeProbe(this.holding, evt.target);
+              }
+            });
+          });
+        },
+
+        cycleMode: function() {
+          const rot = this.dial.getAttribute('rotation');
+          if (this.mode === 'OFF') {
+            this.mode = 'VOLTS';
+            this.dial.setAttribute('rotation', {x: 0, y: 0, z: -45});
+          } else if (this.mode === 'VOLTS') {
+            this.mode = 'AMPS';
+            this.dial.setAttribute('rotation', {x: 0, y: 0, z: 45});
+          } else {
+            this.mode = 'OFF';
+            this.dial.setAttribute('rotation', {x: 0, y: 0, z: 0});
+          }
+          this.updateScreen();
+        },
+
+        toggleHold: function(color) {
+          const probe = color === 'red' ? this.redProbe : this.blackProbe;
+          const camera = document.querySelector('#camera');
+
+          if (this.holding === color) {
+            // Drop it (reset to default holder position roughly or just leave it)
+            // For this logic, we actually want to DROP it onto a node. 
+            // If clicked without a node, we just release it in place or put back to holster.
+            // Let's implement a simple "Put back" if clicked while holding
+            this.holding = null;
+            probe.removeAttribute('animation');
+            // Reset to table holster position
+            if(color === 'red') probe.setAttribute('position', "0.2 0.05 0.3");
+            else probe.setAttribute('position', "-0.2 0.05 0.3");
+            
+            // Clear logical connection
+            if(color === 'red') this.redProbeNode = null;
+            else this.blackProbeNode = null;
+            
+            // Detach from camera
+            this.el.sceneEl.appendChild(probe); 
+            this.updateScreen();
+          } else {
+            // Pick up
+            if(this.holding) return; // Can only hold one
+            this.holding = color;
+            
+            // Attach to camera to follow gaze
+            probe.object3D.position.set(0.3, -0.2, -0.5); // Offset relative to camera
+            camera.appendChild(probe);
+          }
+        },
+
+        placeProbe: function(color, nodeEl) {
+          const probe = color === 'red' ? this.redProbe : this.blackProbe;
+          const nodeId = nodeEl.getAttribute('id');
+          const nodePos = nodeEl.getAttribute('position');
+
+          // Detach from camera and snap to node
+          this.el.sceneEl.appendChild(probe);
+          
+          // Snap position (with slight offset for visual clarity)
+          // Convert world position for safety
+          const worldPos = new THREE.Vector3();
+          nodeEl.object3D.getWorldPosition(worldPos);
+          
+          probe.setAttribute('position', {
+            x: worldPos.x,
+            y: worldPos.y + 0.1, // Sit slightly on top
+            z: worldPos.z
+          });
+          
+          // Update Logic
+          if (color === 'red') this.redProbeNode = nodeId;
+          else this.blackProbeNode = nodeId;
+
+          this.holding = null;
+          this.updateScreen();
+        },
+
+        updateScreen: function() {
+          if (this.mode === 'OFF') {
+            this.screenText.setAttribute('value', '');
+            return;
+          }
+
+          if (!this.redProbeNode || !this.blackProbeNode) {
+            this.screenText.setAttribute('value', '---');
+            return;
+          }
+
+          if (this.mode === 'VOLTS') {
+             const v1 = CIRCUIT_DATA.nodes[this.redProbeNode];
+             const v2 = CIRCUIT_DATA.nodes[this.blackProbeNode];
+             const diff = v1 - v2;
+             this.screenText.setAttribute('value', diff.toFixed(2) + ' V');
+          } 
+          else if (this.mode === 'AMPS') {
+            // Simplified Simulation: 
+            // If probes are on different potential parts of the loop, show current.
+            // In reality, you must break the circuit, but this is a "Clamp" style logic for VR UX.
+            if (this.redProbeNode !== this.blackProbeNode) {
+                const current = CIRCUIT_DATA.voltage / CIRCUIT_DATA.resistance; // I = V/R
+                const mA = current * 1000;
+                this.screenText.setAttribute('value', mA.toFixed(1) + ' mA');
+            } else {
+                this.screenText.setAttribute('value', '0.0 mA');
+            }
+          }
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <a-scene circuit-manager cursor="rayOrigin: mouse" raycaster="objects: .clickable">
+      
+      <!-- Environment & Lights -->
+      <a-entity environment="preset: contact; lighting: none; grid: none; groundColor: #445"></a-entity>
+      <a-light type="ambient" color="#BBB"></a-light>
+      <a-light type="directional" position="-1 4 2" intensity="0.8"></a-light>
+      
+      <!-- Camera -->
+      <a-entity id="camera" camera look-controls wasd-controls position="0 1.6 1.5">
+        <!-- Optional Gaze Cursor for VR headsets without controllers -->
+        <a-entity cursor="fuse: false"
+                  position="0 0 -1"
+                  geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+                  material="color: black; shader: flat"
+                  visible="false">
+        </a-entity>
+      </a-entity>
+
+      <!-- TABLE -->
+      <a-box position="0 0.8 0" width="3" depth="2" height="0.1" color="#555"></a-box>
+
+      <!-- ================= CIRCUIT ================= -->
+      <a-entity position="0 0.85 -0.5">
+        
+        <!-- Battery (9V) -->
+        <a-cylinder position="-0.5 0.1 0" rotation="0 0 90" height="0.4" radius="0.1" color="#222">
+          <a-cylinder position="0 0.22 0" height="0.05" radius="0.03" color="#AAA"></a-cylinder> <!-- Terminal -->
+          <a-text value="9V" position="0 0.2 0.12" rotation="0 0 -90" scale="0.5 0.5 0.5" align="center" color="white"></a-text>
+        </a-cylinder>
+
+        <!-- Resistor (1k Ohm) -->
+        <a-cylinder position="0.5 0.1 0" rotation="0 0 90" height="0.3" radius="0.06" color="#EEDDCC">
+          <!-- Color Bands: Brown, Black, Red (1, 0, x100) -->
+          <a-torus position="0 0.1 0" radius="0.062" radius-tubular="0.005" color="#5C4033" rotation="90 0 0"></a-torus>
+          <a-torus position="0 0.05 0" radius="0.062" radius-tubular="0.005" color="black" rotation="90 0 0"></a-torus>
+          <a-torus position="0 -0.05 0" radius="0.062" radius-tubular="0.005" color="red" rotation="90 0 0"></a-torus>
+          <a-text value="1k" position="0 0.2 0.08" rotation="0 0 -90" scale="0.4 0.4 0.4" align="center" color="black"></a-text>
+        </a-cylinder>
+
+        <!-- Wires -->
+        <!-- Top Wire (Bat+ to Res+) -->
+        <a-entity line="start: -0.28 0.1 0; end: 0.35 0.1 0; color: red"></a-entity>
+        <!-- Bottom Wire Loop (Res- to Bat-) -->
+        <a-entity line="start: 0.65 0.1 0; end: 0.8 0.1 0; color: black"></a-entity>
+        <a-entity line="start: 0.8 0.1 0; end: 0.8 0.1 0.4; color: black"></a-entity>
+        <a-entity line="start: 0.8 0.1 0.4; end: -0.7 0.1 0.4; color: black"></a-entity>
+        <a-entity line="start: -0.7 0.1 0.4; end: -0.7 0.1 0; color: black"></a-entity>
+        <a-entity line="start: -0.7 0.1 0; end: -0.7 0.1 0; color: black"></a-entity>
+        <a-entity line="start: -0.7 0.1 0; end: -0.5 0.1 0; color: black"></a-entity>
+
+        <!-- Visual Wire geometry for better look -->
+        <a-cylinder color="red" radius="0.01" height="0.63" rotation="0 0 90" position="0.035 0.1 0"></a-cylinder>
+        <a-cylinder color="black" radius="0.01" height="1.5" rotation="0 90 90" position="0.05 0.1 0.4"></a-cylinder> <!-- Long back wire -->
+        <!-- Connectors -->
+        <a-cylinder color="black" radius="0.01" height="0.4" rotation="90 0 0" position="0.8 0.1 0.2"></a-cylinder>
+        <a-cylinder color="black" radius="0.01" height="0.4" rotation="90 0 0" position="-0.7 0.1 0.2"></a-cylinder>
+        <a-cylinder color="black" radius="0.01" height="0.2" rotation="0 0 90" position="-0.6 0.1 0"></a-cylinder>
+        <a-cylinder color="black" radius="0.01" height="0.15" rotation="0 0 90" position="0.725 0.1 0"></a-cylinder>
+
+        <!-- Nodes (Interaction Points) -->
+        <!-- 1. Bat Pos -->
+        <a-sphere id="node-bat-pos" class="circuit-node clickable" radius="0.04" color="#FFD700" opacity="0.6" position="-0.25 0.1 0"
+                  animation="property: scale; dir: alternate; dur: 1000; to: 1.2 1.2 1.2; loop: true"></a-sphere>
+        <!-- 2. Res Top -->
+        <a-sphere id="node-res-top" class="circuit-node clickable" radius="0.04" color="#FFD700" opacity="0.6" position="0.35 0.1 0"
+                  animation="property: scale; dir: alternate; dur: 1000; to: 1.2 1.2 1.2; loop: true"></a-sphere>
+        <!-- 3. Res Bot -->
+        <a-sphere id="node-res-bot" class="circuit-node clickable" radius="0.04" color="#FFD700" opacity="0.6" position="0.65 0.1 0"
+                  animation="property: scale; dir: alternate; dur: 1000; to: 1.2 1.2 1.2; loop: true"></a-sphere>
+        <!-- 4. Bat Neg -->
+        <a-sphere id="node-bat-neg" class="circuit-node clickable" radius="0.04" color="#FFD700" opacity="0.6" position="-0.7 0.1 0"
+                  animation="property: scale; dir: alternate; dur: 1000; to: 1.2 1.2 1.2; loop: true"></a-sphere>
+
+      </a-entity>
+
+      <!-- ================= MULTIMETER ================= -->
+      <a-entity position="0 0.85 0.3" rotation="-30 0 0">
+        
+        <!-- Body -->
+        <a-box color="#FFCC00" width="0.3" height="0.5" depth="0.05" position="0 0 0"></a-box>
+        
+        <!-- Screen Area -->
+        <a-plane color="#334433" width="0.25" height="0.15" position="0 0.12 0.03">
+          <a-text id="multimeter-text" value="" color="#00FF00" align="right" position="0.1 0 0" scale="0.8 0.8 0.8" font="sourcecodepro"></a-text>
+        </a-plane>
+        
+        <!-- Dial -->
+        <a-cylinder id="multimeter-dial" class="clickable" color="#333" radius="0.08" height="0.02" position="0 -0.05 0.03" rotation="0 0 0">
+          <a-box color="white" width="0.01" height="0.08" depth="0.02" position="0 0.02 0"></a-box> <!-- Indicator -->
+        </a-cylinder>
+
+        <!-- Labels -->
+        <a-text value="OFF" position="0 -0.01 0.03" scale="0.3 0.3 0.3" align="center" color="black"></a-text>
+        <a-text value="V" position="-0.12 -0.08 0.03" scale="0.4 0.4 0.4" align="center" color="black"></a-text>
+        <a-text value="A" position="0.12 -0.08 0.03" scale="0.4 0.4 0.4" align="center" color="black"></a-text>
+        
+        <!-- Instructions -->
+        <a-text value="Click Dial to Toggle Mode" position="0 -0.3 0" scale="0.2 0.2 0.2" align="center" color="white"></a-text>
+
+      </a-entity>
+
+      <!-- ================= PROBES ================= -->
+      
+      <!-- Red Probe -->
+      <a-entity id="probe-red" class="clickable" position="0.2 0.05 0.3" rotation="0 0 -45">
+        <a-cylinder color="red" height="0.2" radius="0.01"></a-cylinder>
+        <a-cone color="#888" height="0.05" radius-bottom="0.01" radius-top="0" position="0 -0.125 0"></a-cone>
+        <a-sphere radius="0.02" color="red" position="0 0.1 0" opacity="0.5"></a-sphere> <!-- Handle/Grip visual -->
+      </a-entity>
+
+      <!-- Black Probe -->
+      <a-entity id="probe-black" class="clickable" position="-0.2 0.05 0.3" rotation="0 0 45">
+        <a-cylinder color="#333" height="0.2" radius="0.01"></a-cylinder>
+        <a-cone color="#888" height="0.05" radius-bottom="0.01" radius-top="0" position="0 -0.125 0"></a-cone>
+        <a-sphere radius="0.02" color="black" position="0 0.1 0" opacity="0.5"></a-sphere>
+      </a-entity>
+
+      <!-- Cable visuals (Static decoration for now, curves are complex to animate dynamically in vanilla A-frame) -->
+      <a-entity line="start: 0.2 0.05 0.3; end: 0.05 -0.2 0.3; color: red"></a-entity>
+      <a-entity line="start: -0.2 0.05 0.3; end: -0.05 -0.2 0.3; color: black"></a-entity>
+
+    </a-scene>
+  </body>
+</html>
